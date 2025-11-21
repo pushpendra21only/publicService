@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login — Public Services Portal</title>
+  <style>
+    :root {
+      --blue: #1565d8;
+      --blue-dark: #0b3d91;
+      --bg: #f5f8ff;
+      --card: #fff;
+      --muted: #536171;
+      --radius: 12px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html, body { height: 100%; margin: 0; background: var(--bg); }
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(16,40,80,0.10);
+      padding: 36px 28px 28px 28px;
+      width: 100%;
+      max-width: 370px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+    .logo {
+      width: 56px; height: 56px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .logo img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 8px; }
+    h1 { font-size: 20px; margin: 0 0 6px 0; color: var(--blue-dark); }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 10px; text-align: center; }
+    form { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+    label { font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+    input[type="text"], input[type="password"] {
+      width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #c3d0e8; font-size: 15px;
+    }
+    .btn {
+      background: linear-gradient(90deg, var(--blue), var(--blue-dark));
+      color: #fff; border: none; border-radius: 8px; padding: 10px 0; font-size: 16px; font-weight: 600;
+      cursor: pointer; margin-top: 8px;
+      transition: background .18s;
+    }
+    .btn:active { background: var(--blue-dark); }
+    .error { color: #c00; font-size: 13px; margin: 0 0 4px 0; text-align: center; }
+    @media (max-width: 480px) {
+      .login-card { padding: 18px 6vw; }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo"><img src="logo.png" alt="Public Services logo" /></div>
+    <h1>Sign in</h1>
+    <div class="sub">Access your Public Services Citizen Query portal</div>
+    <form id="loginForm" autocomplete="on">
+      <div>
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" required autofocus autocomplete="username" />
+      </div>
+      <div>
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required autocomplete="current-password" />
+      </div>
+      <div class="error" id="errorMsg" style="display:none"></div>
+      <button class="btn" type="submit">Login</button>
+    </form>
+  </div>
+  <script>
+    // Simple demo: any non-empty username/password logs in
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var u = document.getElementById('username').value.trim();
+      var p = document.getElementById('password').value.trim();
+      var err = document.getElementById('errorMsg');
+      if (!u || !p) {
+        err.textContent = 'Please enter both username and password.';
+        err.style.display = 'block';
+        return;
+      }
+      // Store login state (for demo, use localStorage)
+      localStorage.setItem('ps_logged_in', '1');
+      window.location.href = 'citizenQuery.html';
+    });
+  </script>
+</body>
+</html>
