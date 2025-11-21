@@ -19,10 +19,11 @@ pip install -r requirements.txt
 ```
 
 
+
 3. Run the Flask API (listens on port 5001)
 
 ```powershell
-cd backend
+cd policy-chatbot
 python server.py
 ```
 
