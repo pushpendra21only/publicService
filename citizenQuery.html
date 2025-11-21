@@ -59,6 +59,26 @@
         .logo{width:48px;height:48px;font-size:16px}
         .controls{flex-direction:column;align-items:stretch}
       }
+      /* Chat widget styles */
+      .chat-button{position:fixed;right:22px;bottom:22px;width:64px;height:64px;border-radius:999px;background:linear-gradient(180deg,var(--accent-2),var(--accent-1));color:white;border:none;box-shadow:0 12px 30px rgba(11,99,214,0.18);cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;z-index:60}
+      .chat-panel{position:fixed;right:22px;bottom:100px;width:360px;max-height:70vh;background:var(--card);border-radius:14px;box-shadow:0 30px 80px rgba(8,24,64,0.18);display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(11,99,214,0.06);z-index:60}
+      .chat-header{padding:12px 14px;background:linear-gradient(90deg,var(--accent-1),var(--accent-2));color:white;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+      .chat-messages{padding:12px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:10px;background:linear-gradient(180deg,#fbfdff,#fff)}
+      .msg{max-width:82%;padding:10px 12px;border-radius:10px;font-size:14px;line-height:1.3}
+      .msg.user{align-self:flex-end;background:linear-gradient(90deg,var(--accent-2),var(--accent-1));color:white}
+      .msg.bot{align-self:flex-start;background:#f1f6ff;color:var(--accent-1);border:1px solid rgba(11,99,214,0.06)}
+      .chat-controls{display:flex;gap:8px;padding:10px;border-top:1px solid rgba(11,99,214,0.04)}
+      .chat-controls input{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(11,99,214,0.06)}
+      .chat-controls button{padding:8px 12px;border-radius:10px;border:none;background:var(--accent-2);color:white;cursor:pointer}
+      .chat-empty{padding:18px;color:var(--muted);text-align:center;font-size:13px}
+  /* File upload inside modal */
+  .file-uploader{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+  .file-drop{padding:14px;border:2px dashed rgba(11,99,214,0.12);border-radius:10px;background:linear-gradient(180deg,#fff,#fbfdff);text-align:center;color:var(--muted);cursor:pointer}
+  .file-drop.dragover{border-color:var(--accent-1);background:#f0f7ff}
+  .file-info{font-size:13px;color:var(--muted)}
+  .file-status{font-size:13px;color:var(--muted);padding:8px;border-radius:8px}
+  .progress-bar{height:8px;background:#e8f0ff;border-radius:6px;overflow:hidden}
+  .progress-bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent-1),var(--accent-2));width:0%}
     </style>
   </head>
   <body>
@@ -121,10 +141,37 @@
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="svc-title" aria-describedby="svc-desc">
         <h2 id="svc-title"></h2>
         <p id="svc-desc"></p>
+        <div class="file-uploader" id="fileUploader">
+          <label for="pdfInput" class="sr-only">Upload a PDF</label>
+          <div id="dropArea" class="file-drop">Drop PDF here or <button id="chooseFile" class="link" type="button">choose file</button></div>
+          <input id="pdfInput" type="file" accept="application/pdf" style="display:none" />
+          <div id="fileInfo" class="file-info" aria-live="polite"></div>
+          <div id="uploadControls" style="display:none">
+            <button id="uploadBtn" class="btn primary">Upload PDF</button>
+            <button id="cancelUpload" class="btn ghost">Cancel</button>
+          </div>
+          <div id="uploadStatus" class="file-status" style="display:none"></div>
+        </div>
         <div class="actions">
           <a id="svc-link" class="btn primary" href="#">Open service</a>
           <button id="svc-close" class="btn ghost">Close</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Chat widget -->
+    <button id="chatBtn" class="chat-button" aria-label="Open chat">💬</button>
+    <div id="chatPanel" class="chat-panel" style="display:none" role="dialog" aria-label="Citizen chat">
+      <div class="chat-header">
+        <div>Citizen Assistant</div>
+        <button id="closeChat" class="btn ghost" title="Close chat">✕</button>
+      </div>
+      <div id="chatMessages" class="chat-messages">
+        <div class="chat-empty">Ask a question about public services — for example: "How do I pay property tax?"</div>
+      </div>
+      <div class="chat-controls">
+        <input id="chatInput" type="text" placeholder="Type your question..." aria-label="Type your question" />
+        <button id="sendChat">Send</button>
       </div>
     </div>
 
@@ -175,6 +222,140 @@
           const desc = el.querySelector('.desc').textContent.toLowerCase();
           el.style.display = (q === '' || name.includes(q) || desc.includes(q)) ? '' : 'none';
         });
+      });
+
+      // --- Chat widget logic ---
+      const chatBtn = document.getElementById('chatBtn');
+      const chatPanel = document.getElementById('chatPanel');
+      const closeChat = document.getElementById('closeChat');
+      const chatMessages = document.getElementById('chatMessages');
+      const chatInput = document.getElementById('chatInput');
+      const sendChat = document.getElementById('sendChat');
+
+      function openChat(){ chatPanel.style.display = 'flex'; chatBtn.style.display = 'none'; chatInput.focus(); }
+      function hideChat(){ chatPanel.style.display = 'none'; chatBtn.style.display = 'flex'; }
+
+      chatBtn.addEventListener('click', openChat);
+      closeChat.addEventListener('click', hideChat);
+
+      function appendMessage(text, cls){
+        // remove empty hint
+        const empty = chatMessages.querySelector('.chat-empty');
+        if(empty) empty.remove();
+        const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; chatMessages.appendChild(d);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      async function sendQuestion(q){
+        if(!q || q.trim()==='') return;
+        appendMessage(q, 'user');
+        chatInput.value = '';
+        appendMessage('Thinking…', 'bot');
+
+        try{
+          const res = await fetch('http://localhost:5001/ask_llm', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question: q})
+          });
+          // remove the 'Thinking…' placeholder (last bot message)
+          const bots = chatMessages.querySelectorAll('.msg.bot');
+          if(bots.length) bots[bots.length-1].remove();
+
+          if(!res.ok){
+            appendMessage('Server error: ' + res.status + ' ' + res.statusText, 'bot');
+            return;
+          }
+          const data = await res.json();
+          // If response contains an 'answer' field, display it; otherwise stringify the entire JSON
+          const answer = data && (data.answer || data.reply || data.message) ? (data.answer || data.reply || data.message) : JSON.stringify(data);
+          appendMessage(answer, 'bot');
+        }catch(err){
+          // remove thinking
+          const bots2 = chatMessages.querySelectorAll('.msg.bot');
+          if(bots2.length) bots2[bots2.length-1].remove();
+          appendMessage('Network error: ' + err.message, 'bot');
+        }
+      }
+
+      sendChat.addEventListener('click', ()=> sendQuestion(chatInput.value));
+      chatInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); sendQuestion(chatInput.value); } });
+
+      // --- PDF upload in modal ---
+      const dropArea = document.getElementById('dropArea');
+      const pdfInput = document.getElementById('pdfInput');
+      const chooseFile = document.getElementById('chooseFile');
+      const fileInfo = document.getElementById('fileInfo');
+      const uploadControls = document.getElementById('uploadControls');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const cancelUpload = document.getElementById('cancelUpload');
+      const uploadStatus = document.getElementById('uploadStatus');
+
+      let pendingFile = null;
+      let uploadXhr = null;
+
+      function formatBytes(n){ if(n<1024) return n + ' B'; if(n<1024*1024) return (n/1024).toFixed(1)+' KB'; return (n/(1024*1024)).toFixed(1)+' MB'; }
+
+      function showSelectedFile(file){
+        pendingFile = file;
+        fileInfo.textContent = `Selected: ${file.name} (${formatBytes(file.size)})`;
+        uploadControls.style.display = 'flex';
+        uploadStatus.style.display = 'none';
+      }
+
+      // choose file button opens hidden input
+      chooseFile.addEventListener('click', ()=> pdfInput.click());
+      pdfInput.addEventListener('change', (e)=>{
+        const f = e.target.files && e.target.files[0];
+        if(f) {
+          if(f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')){
+            uploadStatus.style.display = 'block'; uploadStatus.textContent = 'Only PDF files are allowed.'; return;
+          }
+          showSelectedFile(f);
+        }
+      });
+
+      // drag & drop handlers
+      dropArea.addEventListener('dragover', (e)=>{ e.preventDefault(); dropArea.classList.add('dragover'); });
+      dropArea.addEventListener('dragleave', (e)=>{ dropArea.classList.remove('dragover'); });
+      dropArea.addEventListener('drop', (e)=>{
+        e.preventDefault(); dropArea.classList.remove('dragover');
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if(f){
+          if(f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')){
+            uploadStatus.style.display = 'block'; uploadStatus.textContent = 'Only PDF files are allowed.'; return;
+          }
+          showSelectedFile(f);
+        }
+      });
+
+      function resetUploader(){ pendingFile = null; pdfInput.value = ''; fileInfo.textContent = ''; uploadControls.style.display = 'none'; uploadStatus.style.display = 'none'; }
+
+      cancelUpload.addEventListener('click', ()=>{ if(uploadXhr){ uploadXhr.abort(); uploadXhr = null; } resetUploader(); });
+
+      uploadBtn.addEventListener('click', ()=>{
+        if(!pendingFile) return;
+        uploadStatus.style.display = 'block'; uploadStatus.innerHTML = 'Uploading... <div class="progress-bar" style="margin-top:8px"><i style="width:0%"></i></div>';
+
+        const form = new FormData(); form.append('file', pendingFile);
+
+        uploadXhr = new XMLHttpRequest();
+        uploadXhr.open('POST', 'http://localhost:5001/upload_pdf', true);
+        uploadXhr.onload = function(){
+          uploadXhr = null;
+          if(this.status >= 200 && this.status < 300){
+            try{ const data = JSON.parse(this.responseText); uploadStatus.innerHTML = 'Upload successful: ' + (data.filename || data.name || '') + (data.message ? (' — '+data.message) : ''); }
+            catch(e){ uploadStatus.textContent = 'Upload finished (invalid JSON response).'; }
+            resetUploader();
+          } else {
+            uploadStatus.textContent = 'Upload failed: ' + this.status + ' ' + this.statusText;
+          }
+        };
+        uploadXhr.onerror = function(){ uploadStatus.textContent = 'Upload error'; uploadXhr = null; };
+        uploadXhr.upload.onprogress = function(e){
+          if(e.lengthComputable){ const pct = Math.round((e.loaded / e.total) * 100); const bar = uploadStatus.querySelector('.progress-bar > i'); if(bar) bar.style.width = pct + '%'; }
+        };
+        uploadXhr.send(form);
       });
     </script>
   </body>
