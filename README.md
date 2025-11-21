@@ -11,17 +11,21 @@ python -m venv venv
 .\venv\Scripts\Activate
 ```
 
-2. Install dependencies
+
+2. Install dependencies (from the project root)
 
 ```powershell
 pip install -r requirements.txt
 ```
 
+
 3. Run the Flask API (listens on port 5001)
 
 ```powershell
+cd backend
 python server.py
 ```
+
 
 4. Serve the frontend or open the HTML directly
 
