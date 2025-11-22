@@ -17,19 +17,29 @@ KB = {
 
 @app.route('/ask', methods=['POST'])
 def ask():
-    # Try to parse JSON first
-    data = request.get_json(silent=True)
+    # Accept form-data 'query' first (application/x-www-form-urlencoded or multipart/form-data)
     question = None
-    if isinstance(data, dict) and 'question' in data:
-        question = data['question']
-    else:
-        # If not JSON, try to get raw string from body
+    try:
+        if request.form and 'query' in request.form:
+            question = request.form.get('query')
+    except Exception:
+        # ignore form parsing errors and continue
+        question = None
+
+    # Next, accept JSON body with 'query' or 'question'
+    if not question:
+        data = request.get_json(silent=True)
+        if isinstance(data, dict):
+            question = data.get('query') or data.get('question')
+
+    # Finally, fall back to raw text body
+    if not question:
         raw = request.data.decode('utf-8').strip() if request.data else ''
         if raw:
             question = raw
 
     if not question:
-        return jsonify({'error': 'Missing question in request (expected JSON {"question": ...} or plain text body).'}), 400
+        return jsonify({'error': 'Missing question in request. Provide form field "query" or JSON {"query": "..."} or a plain text body.'}), 400
 
     # simulate a small processing delay
     time.sleep(0.4)
